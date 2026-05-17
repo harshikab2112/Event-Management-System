@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en" ng-app="eventApp">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Event Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+            },
+            colors: {
+              ink: '#141414',
+              mint: '#0f766e',
+              coral: '#f97316'
+            },
+            boxShadow: {
+              soft: '0 18px 45px rgba(15, 23, 42, 0.10)'
+            }
+          }
+        }
+      };
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="bg-stone-50 text-zinc-900" ng-controller="EventController as vm" ng-cloak>
+    <div
+      id="toast"
+      class="fixed right-4 top-4 z-50 hidden max-w-sm rounded-lg border bg-white px-4 py-3 text-sm shadow-soft"
+    ></div>
+
+    <header class="border-b border-zinc-200 bg-white">
+      <div class="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.24em] text-mint">Event Desk</p>
+            <h1 class="mt-1 text-3xl font-black tracking-normal text-ink sm:text-4xl">
+              Event Management System
+            </h1>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-bold text-zinc-800 transition hover:border-zinc-500"
+              ng-click="vm.exportCsv()"
+            >
+              <span aria-hidden="true">CSV</span>
+              Export
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-700"
+              ng-click="vm.openCreate()"
+            >
+              <span class="text-lg leading-none" aria-hidden="true">+</span>
+              New Event
+            </button>
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <section class="metric-panel border-teal-200 bg-teal-50">
+            <span>Total Events</span>
+            <strong>{{ vm.stats().total }}</strong>
+          </section>
+          <section class="metric-panel border-orange-200 bg-orange-50">
+            <span>Upcoming</span>
+            <strong>{{ vm.stats().upcoming }}</strong>
+          </section>
+          <section class="metric-panel border-rose-200 bg-rose-50">
+            <span>Seats Booked</span>
+            <strong>{{ vm.stats().booked }}</strong>
+          </section>
+          <section class="metric-panel border-zinc-200 bg-zinc-100">
+            <span>Revenue</span>
+            <strong>{{ vm.formatMoney(vm.stats().revenue) }}</strong>
+          </section>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[280px_1fr] lg:px-8">
+      <aside class="h-fit rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-black uppercase tracking-[0.16em] text-zinc-500">Filters</h2>
+          <button
+            type="button"
+            class="text-sm font-bold text-mint hover:text-teal-900"
+            ng-click="vm.resetFilters()"
+          >
+            Reset
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-4">
+          <label class="block">
+            <span class="field-label">Search</span>
+            <input
+              class="field-input"
+              type="search"
+              ng-model="vm.filters.search"
+              ng-change="vm.queueLoad()"
+              placeholder="Title, organizer, place"
+            />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Category</span>
+            <select class="field-input" ng-model="vm.filters.category" ng-change="vm.loadEvents()">
+              <option value="">All categories</option>
+              <option ng-repeat="category in vm.categories" value="{{ category }}">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="field-label">Status</span>
+            <select class="field-input" ng-model="vm.filters.status" ng-change="vm.loadEvents()">
+              <option value="">All statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </label>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="field-label">From</span>
+              <input class="field-input" type="date" ng-model="vm.filters.from" ng-change="vm.loadEvents()" />
+            </label>
+            <label class="block">
+              <span class="field-label">To</span>
+              <input class="field-input" type="date" ng-model="vm.filters.to" ng-change="vm.loadEvents()" />
+            </label>
+          </div>
+
+          <label class="block">
+            <span class="field-label">Sort</span>
+            <select class="field-input" ng-model="vm.filters.sortBy" ng-change="vm.loadEvents()">
+              <option value="eventDate">Event date</option>
+              <option value="createdAt">Recently created</option>
+              <option value="title">Title</option>
+              <option value="capacity">Capacity</option>
+              <option value="price">Price</option>
+            </select>
+          </label>
+        </div>
+      </aside>
+
+      <section class="min-w-0">
+        <div
+          class="mb-4 flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+        >
+          <div>
+            <h2 class="text-xl font-black text-ink">Events</h2>
+            <p class="text-sm text-zinc-500">
+              {{ vm.events.length }} matching event{{ vm.events.length === 1 ? '' : 's' }}
+            </p>
+          </div>
+          <div class="flex rounded-md border border-zinc-200 bg-zinc-50 p-1 text-sm font-bold">
+            <button
+              type="button"
+              class="rounded px-3 py-1.5 transition"
+              ng-class="vm.viewMode === 'grid' ? 'bg-white shadow-sm text-ink' : 'text-zinc-500'"
+              ng-click="vm.viewMode = 'grid'"
+            >
+              Grid
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1.5 transition"
+              ng-class="vm.viewMode === 'table' ? 'bg-white shadow-sm text-ink' : 'text-zinc-500'"
+              ng-click="vm.viewMode = 'table'"
+            >
+              Table
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+          ng-if="vm.error"
+        >
+          {{ vm.error }}
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" ng-if="vm.viewMode === 'grid'">
+          <article
+            class="event-card overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft"
+            ng-repeat="event in vm.events track by event._id"
+          >
+            <div class="relative h-40 bg-zinc-200">
+              <img
+                class="h-full w-full object-cover"
+                ng-src="{{ event.imageUrl || vm.fallbackImage(event.category) }}"
+                alt="{{ event.title }}"
+              />
+              <div class="absolute left-3 top-3 flex flex-wrap gap-2">
+                <span class="status-badge" ng-class="vm.statusClass(event.status)">
+                  {{ event.status }}
+                </span>
+                <span class="status-badge bg-white/90 text-zinc-800">
+                  {{ event.category }}
+                </span>
+              </div>
+            </div>
+
+            <div class="space-y-4 p-4">
+              <div>
+                <h3 class="line-clamp-2 text-lg font-black text-ink">{{ event.title }}</h3>
+                <p class="mt-1 text-sm text-zinc-500">{{ vm.dateLabel(event.eventDate) }} at {{ event.startTime }}</p>
+              </div>
+
+              <p class="line-clamp-3 min-h-16 text-sm leading-6 text-zinc-600">
+                {{ event.description }}
+              </p>
+
+              <div class="grid gap-2 text-sm text-zinc-700">
+                <div class="flex items-start gap-2">
+                  <span class="mt-0.5 text-mint" aria-hidden="true">●</span>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <span class="mt-0.5 text-coral" aria-hidden="true">●</span>
+                  <span>{{ event.organizer }}</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                  <span>Booked</span>
+                  <span>{{ event.seatsBooked || 0 }}/{{ event.capacity }}</span>
+                </div>
+                <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    class="h-full rounded-full bg-mint"
+                    ng-style="{ width: vm.capacityPercent(event) + '%' }"
+                  ></div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
+                <strong class="text-lg text-ink">{{ vm.formatMoney(event.price) }}</strong>
+                <div class="flex gap-2">
+                  <button class="icon-button" type="button" title="Register attendee" ng-click="vm.openRegister(event)">
+                    Join
+                  </button>
+                  <button class="icon-button" type="button" title="Edit event" ng-click="vm.openEdit(event)">
+                    Edit
+                  </button>
+                  <button class="icon-button danger" type="button" title="Delete event" ng-click="vm.deleteEvent(event)">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm" ng-if="vm.viewMode === 'table'">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-zinc-200 text-sm">
+              <thead class="bg-zinc-50 text-left text-xs font-black uppercase tracking-[0.14em] text-zinc-500">
+                <tr>
+                  <th class="px-4 py-3">Event</th>
+                  <th class="px-4 py-3">Date</th>
+                  <th class="px-4 py-3">Place</th>
+                  <th class="px-4 py-3">Seats</th>
+                  <th class="px-4 py-3">Status</th>
+                  <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-100">
+                <tr ng-repeat="event in vm.events track by event._id" class="hover:bg-zinc-50">
+                  <td class="px-4 py-3">
+                    <strong class="block text-ink">{{ event.title }}</strong>
+                    <span class="text-zinc-500">{{ event.category }}</span>
+                  </td>
+                  <td class="px-4 py-3">{{ vm.dateLabel(event.eventDate) }}</td>
+                  <td class="px-4 py-3">{{ event.location }}</td>
+                  <td class="px-4 py-3">{{ event.seatsBooked || 0 }}/{{ event.capacity }}</td>
+                  <td class="px-4 py-3">
+                    <span class="status-badge" ng-class="vm.statusClass(event.status)">
+                      {{ event.status }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <button class="table-action" type="button" ng-click="vm.openRegister(event)">Join</button>
+                    <button class="table-action" type="button" ng-click="vm.openEdit(event)">Edit</button>
+                    <button class="table-action text-rose-700" type="button" ng-click="vm.deleteEvent(event)">Delete</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          class="mt-6 rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center"
+          ng-if="!vm.loading && vm.events.length === 0"
+        >
+          <h3 class="text-lg font-black text-ink">No events found</h3>
+          <p class="mt-2 text-sm text-zinc-500">Create an event or adjust the current filters.</p>
+          <button
+            type="button"
+            class="mt-5 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white"
+            ng-click="vm.openCreate()"
+          >
+            New Event
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <div
+      id="eventModal"
+      class="fixed inset-0 z-40 hidden items-center justify-center bg-zinc-950/50 p-4"
+      aria-modal="true"
+      role="dialog"
+    >
+      <form
+        class="dialog-panel max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-soft"
+        ng-submit="vm.saveEvent()"
+      >
+        <div class="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-5 py-4">
+          <h2 class="text-xl font-black text-ink">{{ vm.editing ? 'Edit Event' : 'New Event' }}</h2>
+          <button type="button" class="rounded-md px-3 py-1 text-xl text-zinc-500 hover:bg-zinc-100" ng-click="vm.closeEventModal()">
+            ×
+          </button>
+        </div>
+
+        <div class="grid gap-5 p-5 md:grid-cols-2">
+          <label class="block md:col-span-2">
+            <span class="field-label">Title</span>
+            <input class="field-input" type="text" ng-model="vm.form.title" required maxlength="120" />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Category</span>
+            <select class="field-input" ng-model="vm.form.category" required>
+              <option ng-repeat="category in vm.categories" value="{{ category }}">
+                {{ category }}
+              </option>
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="field-label">Status</span>
+            <select class="field-input" ng-model="vm.form.status" required>
+              <option value="Draft">Draft</option>
+              <option value="Published">Published</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="field-label">Date</span>
+            <input class="field-input" type="date" ng-model="vm.form.eventDate" required />
+          </label>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="field-label">Start</span>
+              <input class="field-input" type="time" ng-model="vm.form.startTime" required />
+            </label>
+            <label class="block">
+              <span class="field-label">End</span>
+              <input class="field-input" type="time" ng-model="vm.form.endTime" />
+            </label>
+          </div>
+
+          <label class="block md:col-span-2">
+            <span class="field-label">Location</span>
+            <input class="field-input" type="text" ng-model="vm.form.location" required maxlength="160" />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Capacity</span>
+            <input class="field-input" type="number" min="1" max="100000" ng-model="vm.form.capacity" required />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Price</span>
+            <input class="field-input" type="number" min="0" step="0.01" ng-model="vm.form.price" />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Organizer</span>
+            <input class="field-input" type="text" ng-model="vm.form.organizer" required maxlength="100" />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Contact Email</span>
+            <input class="field-input" type="email" ng-model="vm.form.contactEmail" required />
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="field-label">Image URL</span>
+            <input class="field-input" type="url" ng-model="vm.form.imageUrl" placeholder="https://..." />
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="field-label">Description</span>
+            <textarea class="field-input min-h-32 resize-y" ng-model="vm.form.description" required maxlength="1200"></textarea>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-zinc-200 px-5 py-4">
+          <button type="button" class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-bold" ng-click="vm.closeEventModal()">
+            Cancel
+          </button>
+          <button type="submit" class="rounded-md bg-ink px-4 py-2 text-sm font-bold text-white" ng-disabled="vm.saving">
+            {{ vm.saving ? 'Saving...' : 'Save Event' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div
+      id="registerModal"
+      class="fixed inset-0 z-40 hidden items-center justify-center bg-zinc-950/50 p-4"
+      aria-modal="true"
+      role="dialog"
+    >
+      <form
+        class="dialog-panel w-full max-w-xl rounded-lg bg-white shadow-soft"
+        ng-submit="vm.registerAttendee()"
+      >
+        <div class="flex items-start justify-between border-b border-zinc-200 px-5 py-4">
+          <div>
+            <h2 class="text-xl font-black text-ink">Register Attendee</h2>
+            <p class="text-sm text-zinc-500">{{ vm.selectedEvent.title }}</p>
+          </div>
+          <button type="button" class="rounded-md px-3 py-1 text-xl text-zinc-500 hover:bg-zinc-100" ng-click="vm.closeRegisterModal()">
+            ×
+          </button>
+        </div>
+
+        <div class="space-y-4 p-5">
+          <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm">
+            <div class="flex justify-between gap-4">
+              <span class="font-bold text-zinc-500">Seats remaining</span>
+              <strong>{{ vm.selectedEvent.seatsRemaining }}</strong>
+            </div>
+            <div class="mt-2 flex justify-between gap-4">
+              <span class="font-bold text-zinc-500">Price</span>
+              <strong>{{ vm.formatMoney(vm.selectedEvent.price) }}</strong>
+            </div>
+          </div>
+
+          <label class="block">
+            <span class="field-label">Full Name</span>
+            <input class="field-input" type="text" ng-model="vm.attendee.name" required maxlength="80" />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Email</span>
+            <input class="field-input" type="email" ng-model="vm.attendee.email" required />
+          </label>
+
+          <label class="block">
+            <span class="field-label">Phone</span>
+            <input class="field-input" type="tel" ng-model="vm.attendee.phone" maxlength="30" />
+          </label>
+
+          <div ng-if="vm.selectedEvent.attendees.length">
+            <h3 class="mb-2 text-sm font-black uppercase tracking-[0.14em] text-zinc-500">
+              Attendees
+            </h3>
+            <div class="max-h-36 space-y-2 overflow-y-auto pr-1">
+              <div
+                class="flex items-center justify-between rounded-md bg-zinc-50 px-3 py-2 text-sm"
+                ng-repeat="attendee in vm.selectedEvent.attendees track by attendee._id"
+              >
+                <span class="font-semibold text-zinc-800">{{ attendee.name }}</span>
+                <span class="text-zinc-500">{{ attendee.email }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-end gap-3 border-t border-zinc-200 px-5 py-4">
+          <button type="button" class="rounded-md border border-zinc-300 px-4 py-2 text-sm font-bold" ng-click="vm.closeRegisterModal()">
+            Cancel
+          </button>
+          <button type="submit" class="rounded-md bg-mint px-4 py-2 text-sm font-bold text-white" ng-disabled="vm.saving || vm.selectedEvent.isFull">
+            {{ vm.saving ? 'Registering...' : 'Register' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

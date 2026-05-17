@@ -1,0 +1,142 @@
+[ng-cloak] {
+  display: none !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.metric-panel {
+  border-width: 1px;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.metric-panel span {
+  display: block;
+  color: #52525b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.metric-panel strong {
+  display: block;
+  color: #141414;
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-top: 0.35rem;
+}
+
+.field-label {
+  color: #52525b;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+}
+
+.field-input {
+  background: #ffffff;
+  border: 1px solid #d4d4d8;
+  border-radius: 0.375rem;
+  color: #18181b;
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  outline: none;
+  padding: 0.65rem 0.75rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  width: 100%;
+}
+
+.field-input:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+}
+
+.status-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  padding: 0.45rem 0.6rem;
+  text-transform: uppercase;
+}
+
+.status-published {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.status-draft {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.status-cancelled {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.icon-button,
+.table-action {
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.45rem 0.6rem;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.icon-button {
+  background: #f4f4f5;
+  color: #27272a;
+}
+
+.icon-button:hover,
+.table-action:hover {
+  background: #e4e4e7;
+}
+
+.icon-button.danger {
+  color: #be123c;
+}
+
+.table-action {
+  color: #0f766e;
+}
+
+.dialog-panel {
+  transform: translateY(10px) scale(0.98);
+}
+
+.dialog-panel.is-visible {
+  transform: translateY(0) scale(1);
+  transition: transform 150ms ease;
+}
+
+.line-clamp-2,
+.line-clamp-3 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  -webkit-line-clamp: 3;
+}
