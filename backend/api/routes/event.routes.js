@@ -1,0 +1,17 @@
+const router = require('express').Router();
+const controller = require('../controllers/event.controller');
+const validate = require('../middleware/validate');
+const { authenticate, optionalAuthenticate, requireAdmin } = require('../middleware/auth');
+const { createEventDto, updateEventDto, listEventsDto } = require('../dto/event.dto');
+router.get('/', optionalAuthenticate, validate(listEventsDto, 'query'), controller.list);
+router.get('/stats', authenticate, requireAdmin, controller.stats);
+router.get('/my-registrations', authenticate, controller.myRegistrations);
+router.get('/attendees', authenticate, requireAdmin, controller.attendees);
+router.get('/:id', optionalAuthenticate, controller.get);
+router.post('/', authenticate, requireAdmin, validate(createEventDto), controller.create);
+router.put('/:id', authenticate, requireAdmin, validate(updateEventDto), controller.update);
+router.delete('/:id', authenticate, requireAdmin, controller.remove);
+router.post('/:id/registrations', authenticate, controller.register);
+router.delete('/:id/registrations/me', authenticate, controller.cancelRegistration);
+router.post('/:id/check-in', authenticate, requireAdmin, validate(require('zod').z.object({ ticketCode: require('zod').z.string().min(20).max(64) }).strict()), controller.checkIn);
+module.exports = router;

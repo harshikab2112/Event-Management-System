@@ -1,14 +1,9 @@
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const Event = require('../models/Event');
-const { databaseNameFromUri, mongoConnectionOptions } = require('../config/database');
+const User = require('../models/User');
 
 dotenv.config();
-
-const MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/event_management_system';
-const MONGODB_DATABASE = databaseNameFromUri(MONGODB_URI);
-const shouldReset = process.argv.includes('--reset') || process.argv.includes('--force');
 
 const daysFromNow = (days) => {
   const date = new Date();
@@ -78,24 +73,16 @@ const events = [
 ];
 
 async function seed() {
-  await mongoose.connect(MONGODB_URI, mongoConnectionOptions(MONGODB_URI));
-
-  const existingEvents = await Event.countDocuments();
-
-  if (existingEvents > 0 && !shouldReset) {
-    console.log(
-      `Seed skipped. ${MONGODB_DATABASE}.events already has ${existingEvents} document(s). Use "npm run seed -- --reset" to replace them.`
-    );
-    await mongoose.disconnect();
-    return;
-  }
-
-  if (shouldReset) {
-    await Event.deleteMany({});
-  }
-
-  await Event.insertMany(events);
-  console.log(`Seeded event data into ${MONGODB_DATABASE}.events.`);
+  if (!process.env.MONGODB_URI) throw new Error('Set MONGODB_URI in .env before seeding.');
+  await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000, dbName: process.env.MONGODB_DB_NAME || 'event_management_system' });
+  const email = (process.env.ADMIN_EMAIL || '').toLowerCase();
+  if (!email) throw new Error('Set ADMIN_EMAIL before seeding.');
+  const admin = await User.findOne({ email });
+  if (!admin || admin.role !== 'admin') throw new Error('Register the ADMIN_EMAIL account first so seeded events have a valid owner.');
+  if (await Event.countDocuments()) { console.log('Database already has events; seed skipped to preserve existing data.'); await mongoose.disconnect(); return; }
+  const sampleEvents = events.map(({ attendees, ...event }) => ({ ...event, attendees: [], createdBy: admin._id }));
+  await Event.insertMany(sampleEvents);
+  console.log('Seeded ' + sampleEvents.length + ' sample events.');
   await mongoose.disconnect();
 }
 

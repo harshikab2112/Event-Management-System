@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const { z } = require('zod');
+const rateLimit = require('express-rate-limit');
+const controller = require('../controllers/inquiry.controller');
+const validate = require('../middleware/validate');
+const { authenticate, requireAdmin } = require('../middleware/auth');
+const createDto = z.object({ name: z.string().trim().min(2).max(80), email: z.string().email().max(160), eventId: z.string().optional().or(z.literal('')), guests: z.coerce.number().int().min(1).max(10000).default(1), budget: z.string().trim().max(80).optional().default(''), message: z.string().trim().min(10).max(1500) }).strict();
+const statusDto = z.object({ status: z.enum(['New', 'In progress', 'Quoted', 'Closed']) }).strict();
+const inquiryLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 6, standardHeaders: true, legacyHeaders: false, message: { message: 'Inquiry limit reached. Please try again later.' } });
+router.post('/', inquiryLimiter, validate(createDto), controller.create);
+router.get('/', authenticate, requireAdmin, controller.list);
+router.patch('/:id', authenticate, requireAdmin, validate(statusDto), controller.updateStatus);
+module.exports = router;

@@ -1,0 +1,9 @@
+const { z } = require('zod');
+const registerDto = z.object({ name: z.string().trim().min(2).max(80), email: z.string().trim().email().max(254), password: z.string().min(10).max(128) });
+const loginDto = z.object({ email: z.string().trim().email(), password: z.string().min(1).max(128) });
+const emailDto = z.object({ email: z.string().trim().email().max(254) }).strict();
+const signupOtpRequestDto = z.object({ name: z.string().trim().min(2).max(80), email: z.string().trim().email().max(254), password: z.string().min(10).max(128) }).strict();
+const otpVerifyDto = z.object({ email: z.string().trim().email().max(254), code: z.string().regex(/^\d{6}$/) }).strict();
+const passwordResetVerifyDto = otpVerifyDto.extend({ newPassword: z.string().min(10).max(128) }).strict();
+const googleCredentialDto = z.object({ credential: z.string().min(100).max(8192) }).strict();
+module.exports = { registerDto, loginDto, emailDto, signupOtpRequestDto, otpVerifyDto, passwordResetVerifyDto, googleCredentialDto };

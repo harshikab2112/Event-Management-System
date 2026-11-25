@@ -1,0 +1,10 @@
+const router = require('express').Router();
+const controller = require('../controllers/category.controller');
+const validate = require('../middleware/validate');
+const { optionalAuthenticate, authenticate, requireAdmin } = require('../middleware/auth');
+const { createCategoryDto, updateCategoryDto } = require('../dto/category.dto');
+router.get('/', optionalAuthenticate, controller.list);
+router.post('/', authenticate, requireAdmin, validate(createCategoryDto), controller.create);
+router.patch('/:id', authenticate, requireAdmin, validate(updateCategoryDto), controller.update);
+router.delete('/:id', authenticate, requireAdmin, controller.remove);
+module.exports = router;

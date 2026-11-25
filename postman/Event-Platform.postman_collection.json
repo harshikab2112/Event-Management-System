@@ -1,0 +1,1174 @@
+{
+  "info": {
+    "name": "Gatherly Event Platform API",
+    "description": "End-to-end checks for health, auth, event management, access control, registrations, and validation. The configured ADMIN_EMAIL must match admin_email in the selected Postman environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "event_id",
+      "value": ""
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "member_token",
+      "value": ""
+    },
+    {
+      "key": "category_id",
+      "value": ""
+    },
+    {
+      "key": "ticket_code",
+      "value": ""
+    },
+    {
+      "key": "inquiry_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Health reports a connected database', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().database).to.eql('connected'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenAPI specification",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/openapi.json"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Interactive API documentation is backed by OpenAPI 3', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().openapi).to.eql('3.0.3'); pm.expect(pm.response.json().paths).to.have.property('/events/my-registrations'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register admin (first run creates admin; reruns may return conflict)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Gatherly Admin\",\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin registration creates the configured admin or safely rejects a duplicate', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin can sign in', function () { pm.response.to.have.status(200); var data = pm.response.json(); pm.expect(data.user.role).to.eql('admin'); pm.environment.set('admin_token', data.token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List public event categories",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/categories"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Public category catalog is available',function(){pm.response.to.have.status(200);pm.expect(pm.response.json().items).to.be.an('array').that.is.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create event category",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/categories",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman QA Category\",\n  \"description\": \"Category created by the API suite.\",\n  \"sortOrder\": 99\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin creates a category',function(){pm.response.to.have.status(201);pm.environment.set('category_id',pm.response.json()._id);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Archive event category",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/categories/{{category_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": false\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin archives a category',function(){pm.response.to.have.status(200);pm.expect(pm.response.json().isActive).to.eql(false);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Republish event category",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/categories/{{category_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"isActive\": true\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin republishes a category',function(){pm.response.to.have.status(200);pm.expect(pm.response.json().isActive).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete unused event category",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/categories/{{category_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin deletes an unused category',function(){pm.response.to.have.status(200);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register member (reruns may return conflict)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{member_name}}\",\n  \"email\": \"{{member_email}}\",\n  \"password\": \"{{member_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/register"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member registration succeeds or account already exists', function () { pm.expect([201,409]).to.include(pm.response.code); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Member login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{member_email}}\",\n  \"password\": \"{{member_password}}\"\n}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member can sign in', function () { pm.response.to.have.status(200); var data = pm.response.json(); pm.expect(data.user.role).to.eql('user'); pm.environment.set('member_token', data.token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get my profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Authenticated profile is returned without a password hash', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().user).not.to.have.property('passwordHash'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update my profile",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Gatherly Member Updated\"}"
+        },
+        "url": "{{base_url}}/api/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member can update their profile name', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().user.name).to.eql('Gatherly Member Updated'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invalid login validation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"not-an-email\",\"password\":\"x\"}"
+        },
+        "url": "{{base_url}}/api/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Invalid login fields are rejected', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List published events with pagination",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/events?page=1&limit=6&sortBy=eventDate&order=asc"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Paginated event list responds', function () { pm.response.to.have.status(200); var data = pm.response.json(); pm.expect(data.items).to.be.an('array'); pm.expect(data.pagination).to.have.property('pages'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin metrics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin analytics are returned', function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.have.property('totalEvents'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Member is denied admin metrics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member is forbidden from admin analytics', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Member cannot view guest records",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/attendees"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Guest contact details are admin-only', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create event without auth",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{base_url}}/api/events"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Anonymous event creation is rejected', function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Member cannot create events",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{base_url}}/api/events"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member cannot create an admin-managed event', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman API Showcase {{ $timestamp }}\",\n  \"description\": \"A future API verification event created by the Gatherly Postman collection.\",\n  \"category\": \"Workshop\",\n  \"location\": \"Online\",\n  \"eventDate\": \"2099-08-15T00:00:00.000Z\",\n  \"startTime\": \"10:00\",\n  \"endTime\": \"12:00\",\n  \"capacity\": 3,\n  \"price\": 250,\n  \"imageUrl\": \"\",\n  \"organizer\": \"Gatherly QA\",\n  \"contactEmail\": \"qa@example.test\",\n  \"status\": \"Published\"\n}"
+        },
+        "url": "{{base_url}}/api/events"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin creates a validated event', function () { pm.response.to.have.status(201); var data = pm.response.json(); pm.expect(data._id).to.be.a('string'); pm.environment.set('event_id', data._id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Submit event inquiry",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/inquiries",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Gatherly Postman Guest\",\n  \"email\": \"qa@example.test\",\n  \"eventId\": \"{{event_id}}\",\n  \"guests\": 24,\n  \"budget\": \"\\u20b925,000\\u2013\\u20b950,000\",\n  \"message\": \"We are planning a private gathering and would like help choosing a suitable experience.\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Visitor inquiry is saved',function(){pm.response.to.have.status(201);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin reads inquiry inbox",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/inquiries"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin can access inquiry inbox',function(){pm.response.to.have.status(200);var x=pm.response.json().items.find(i=>i.name==='Gatherly Postman Guest');pm.expect(x).to.exist;pm.environment.set('inquiry_id',x._id);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin updates inquiry status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/inquiries/{{inquiry_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"In progress\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Inquiry status can be managed',function(){pm.response.to.have.status(200);pm.expect(pm.response.json().status).to.eql('In progress');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Save event to favorites",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/favorites/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Customer can save an event', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List saved events",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/favorites"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Saved events persist in customer favorites', function () { pm.response.to.have.status(200); var items = pm.response.json().items; pm.expect(items.some(function (item) { return item.event._id === pm.environment.get('event_id'); })).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get event details",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/events/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Published event details are returned without attendee PII', function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).not.to.have.property('attendees'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update event",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"price\":300}"
+        },
+        "url": "{{base_url}}/api/events/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin updates event fields', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().price).to.eql(300); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register for event",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}/registrations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member reserves a seat and attendee data remains private', function () { pm.response.to.have.status(201); pm.expect(pm.response.json()).not.to.have.property('attendees'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List my registrations",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/my-registrations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member can retrieve their registrations and private ticket QR code', function () { pm.response.to.have.status(200); var data=pm.response.json(); pm.expect(data.items).to.be.an('array'); pm.expect(data.items[0].ticketCode).to.be.a('string').and.have.length.greaterThan(20); pm.environment.set('ticket_code',data.items[0].ticketCode); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin checks in QR ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}/check-in",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ticketCode\": \"{{ticket_code}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('A valid QR ticket can be checked in once',function(){pm.response.to.have.status(200);pm.expect(pm.response.json().checkedIn).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reused QR ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}/check-in",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ticketCode\": \"{{ticket_code}}\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('A checked-in ticket cannot be reused',function(){pm.response.to.have.status(404);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer notification inbox",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/notifications"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registration creates durable in-app notifications', function () { pm.response.to.have.status(200); var data = pm.response.json(); pm.expect(data.unread).to.be.greaterThan(0); pm.environment.set('notification_id', data.items[0]._id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mark one notification read",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/notifications/{{notification_id}}/read"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Customer can mark a notification read', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().readAt).to.not.eql(null); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mark all notifications read",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/notifications/read-all"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Customer can clear the unread badge', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin guest list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/attendees?search={{member_email}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin can search registered guests', function () { pm.response.to.have.status(200); var items = pm.response.json().items; pm.expect(items).to.be.an('array'); pm.expect(items.length).to.be.greaterThan(0); pm.expect(items[0].email).to.eql(pm.environment.get('member_email')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Duplicate registration rejected",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}/registrations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Duplicate reservation returns conflict', function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complete event before reviews",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"eventDate\":\"2020-01-01T00:00:00.000Z\"}"
+        },
+        "url": "{{base_url}}/api/events/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin can close event date before the review flow', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Post attendee review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"rating\":5,\"comment\":\"A thoughtful, well-run event with a great crowd.\"}"
+        },
+        "url": "{{base_url}}/api/events/{{event_id}}/reviews"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registered customer can review a completed event', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read event reviews",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/events/{{event_id}}/reviews"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Event review summary includes submitted rating', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().summary.average).to.eql(5); pm.expect(pm.response.json().summary.count).to.eql(1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cancel my registration",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}/registrations/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member cancels their own registration after leaving a review', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Remove event from favorites",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{member_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/me/favorites/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Customer can remove a saved event', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid event ID",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/events/not-an-object-id"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Malformed event ID returns 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete event",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}"
+          }
+        ],
+        "url": "{{base_url}}/api/events/{{event_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin deletes event', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

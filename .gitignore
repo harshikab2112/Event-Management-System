@@ -1,4 +1,8 @@
 node_modules/
+frontend/dist/
+frontend/node_modules/
+coverage/
+database/backups/
 .env
 npm-debug.log*
 yarn-debug.log*
@@ -6,3 +10,4 @@ yarn-error.log*
 *.log
 .DS_Store
 Thumbs.db
+postman/local.postman_environment.json
