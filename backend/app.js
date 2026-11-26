@@ -20,7 +20,17 @@ app.use(helmet({
       'script-src': ["'self'", 'https://accounts.google.com'],
       'connect-src': ["'self'", 'https://accounts.google.com'],
       'frame-src': ["'self'", 'https://accounts.google.com'],
-      'style-src': ["'self'", "'unsafe-inline'"],
+      'style-src': [
+        "'self'",
+        "'unsafe-inline'",
+        'https://fonts.googleapis.com',
+        'https://accounts.google.com'
+      ],
+      'font-src': [
+        "'self'",
+        'data:',
+        'https://fonts.gstatic.com'
+      ],
       'img-src': ["'self'", 'data:', 'https:']
     }
   }
