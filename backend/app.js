@@ -12,12 +12,27 @@ const errorHandler = require('./api/middleware/error');
 
 const app = express();
 app.disable('x-powered-by');
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'script-src': ["'self'", 'https://accounts.google.com'],
+      'connect-src': ["'self'", 'https://accounts.google.com'],
+      'frame-src': ["'self'", 'https://accounts.google.com'],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'https:']
+    }
+  }
+}));
+
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',').map((origin) => origin.trim());
-app.use(cors({ origin(origin, callback) {
-  if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-  return callback(Object.assign(new Error('Origin is not allowed.'), { status: 403 }));
-} }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(Object.assign(new Error('Origin is not allowed.'), { status: 403 }));
+  }
+}));
 app.use(express.json({ limit: '32kb' }));
 app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 25, standardHeaders: true, legacyHeaders: false }));
